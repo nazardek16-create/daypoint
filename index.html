@@ -142,8 +142,11 @@ label {font-size:13px;color:var(--muted)}
           <div class="stat"><strong id="streak">0</strong><span>Поточна серія 🔥</span></div>
           <div class="stat"><strong id="best">0</strong><span>Найкраща серія</span></div>
           <div class="stat"><strong id="progressText">0%</strong><span>Прогрес цього місяця</span></div>
+          <div class="stat"><strong id="goalPlanText">—</strong><span>План цілі · днів</span></div>
+          <div class="stat"><strong id="goalPercentText">—</strong><span>Виконання плану</span></div>
         </div>
         <div class="progress"><div id="progressBar" style="width:0%"></div></div>
+        <div class="progress"><div id="goalPlanBar" style="width:0%"></div></div>
       </div>
       <div class="actions">
         <button class="secondary" onclick="editGoal()">Редагувати</button>
@@ -181,6 +184,8 @@ label {font-size:13px;color:var(--muted)}
     <input id="goalEmoji" value="🎯" maxlength="4">
     <label>Дата початку</label>
     <input id="goalStart" type="date">
+    <label>План (кількість днів)</label>
+    <input id="goalPlan" type="number" min="1" step="1" placeholder="Наприклад, 100">
     <div class="modal-actions">
       <button class="secondary" onclick="closeModal()">Скасувати</button>
       <button class="primary" onclick="saveGoal()">Зберегти</button>
@@ -220,9 +225,11 @@ function renderGoals() {
   goals.forEach(g => {
     const el = document.createElement('div');
     el.className = 'goal' + (g.id === selectedId ? ' active' : '');
+    const plan = Number(g.plan) || 0;
+    const percent = plan > 0 ? Math.min(100, Math.round(g.marks.length / plan * 100)) : null;
     el.innerHTML = `<div class="emoji">${escapeHtml(g.emoji)}</div>
       <div style="flex:1"><div class="goal-name">${escapeHtml(g.name)}</div>
-      <div class="goal-sub">${g.marks.length} виконаних днів</div></div>
+      <div class="goal-sub">${g.marks.length} виконаних днів · ${plan > 0 ? `план ${plan} днів · ${percent}%` : 'план не задано'}</div></div>
       <div>›</div>`;
     el.onclick = () => { selectedId = g.id; shownMonth = new Date(); render(); };
     box.appendChild(el);
@@ -298,6 +305,11 @@ function renderStats() {
   document.getElementById('best').textContent=getBest(g.marks);
   document.getElementById('progressText').textContent=pct+'%';
   document.getElementById('progressBar').style.width=pct+'%';
+  const plan = Number(g.plan) || 0;
+  const planPct = plan > 0 ? Math.min(100, Math.round(g.marks.length / plan * 100)) : 0;
+  document.getElementById('goalPlanText').textContent = plan > 0 ? plan : '—';
+  document.getElementById('goalPercentText').textContent = plan > 0 ? planPct + '%' : '—';
+  document.getElementById('goalPlanBar').style.width = planPct + '%';
 }
 function renderOverall() {
   const total=goals.reduce((s,g)=>s+g.marks.length,0);
@@ -338,6 +350,7 @@ function openModal(id=null) {
   document.getElementById('goalName').value=g?.name||'';
   document.getElementById('goalEmoji').value=g?.emoji||'🎯';
   document.getElementById('goalStart').value=g?.start||today();
+  document.getElementById('goalPlan').value=(g?.plan ?? '') === 0 ? '' : (g?.plan ?? '');
   document.getElementById('modal').classList.remove('hidden');
 }
 function closeModal() { document.getElementById('modal').classList.add('hidden'); }
@@ -345,14 +358,17 @@ function saveGoal() {
   const name=document.getElementById('goalName').value.trim();
   const emoji=document.getElementById('goalEmoji').value.trim()||'🎯';
   const start=document.getElementById('goalStart').value||today();
+  const planRaw=document.getElementById('goalPlan').value.trim();
+  const plan=planRaw === '' ? null : Number(planRaw);
   if(!name) { alert('Введи назву цілі'); return; }
   if(start>today()) { alert('Дата початку не може бути в майбутньому'); return; }
+  if(plan !== null && (!Number.isInteger(plan) || plan < 1)) { alert('План має бути цілим числом від 1 дня'); return; }
   if(editingId) {
     const g=goals.find(x=>x.id===editingId);
-    g.name=name; g.emoji=emoji; g.start=start;
+    g.name=name; g.emoji=emoji; g.start=start; g.plan=plan;
     g.marks=g.marks.filter(k=>k>=start);
   } else {
-    const g={id:Date.now().toString(),name,emoji,start,marks:[]};
+    const g={id:Date.now().toString(),name,emoji,start,plan,marks:[]};
     goals.push(g); selectedId=g.id;
   }
   persist(); closeModal(); render();
