@@ -1,0 +1,355 @@
+
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#171a1f">
+<title>DAYPOINT</title>
+<style>
+:root {
+  --bg:#171a1f; --panel:#22262d; --panel2:#292e36;
+  --text:#f4f5f6; --muted:#9299a4; --green:#b8e5c5;
+  --greenText:#183324; --line:#343a44; --red:#e58b8b;
+}
+* {box-sizing:border-box}
+body {
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+.app {max-width:520px; margin:auto; padding:25px 18px 100px}
+header {display:flex; justify-content:space-between; align-items:center; margin-bottom:28px}
+.logo {font-size:23px; font-weight:800; letter-spacing:3px}
+.logo span {color:var(--green)}
+.small {color:var(--muted); font-size:12px}
+h1 {font-size:27px; margin:0 0 7px}
+h2 {font-size:18px; margin:0 0 15px}
+p {color:var(--muted)}
+.panel {background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:17px; margin:16px 0}
+button {
+  border:0; border-radius:12px; padding:12px 15px;
+  font-weight:700; cursor:pointer; font-size:14px;
+}
+.primary {background:var(--green); color:var(--greenText)}
+.secondary {background:var(--panel2); color:var(--text)}
+.danger {background:#472b30;color:#ffd6d6}
+input {
+  width:100%; padding:13px; border-radius:11px; border:1px solid var(--line);
+  background:var(--bg); color:var(--text); font-size:16px; margin:7px 0 14px;
+}
+label {font-size:13px;color:var(--muted)}
+.goal-list {display:flex; flex-direction:column; gap:9px}
+.goal {
+  display:flex; align-items:center; gap:12px; padding:14px;
+  background:var(--panel); border:1px solid var(--line);
+  border-radius:15px; cursor:pointer;
+}
+.goal.active {border-color:var(--green)}
+.emoji {font-size:25px}
+.goal-name {font-weight:700; flex:1}
+.goal-sub {font-size:12px;color:var(--muted);margin-top:4px}
+.month-head {display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+.month-head button {padding:8px 12px}
+.week,.calendar {display:grid;grid-template-columns:repeat(7,1fr);gap:7px;text-align:center}
+.week {color:var(--muted);font-size:11px;margin-bottom:8px}
+.day {
+  aspect-ratio:1; border-radius:10px; display:flex;align-items:center;
+  justify-content:center; background:var(--panel2); color:var(--text);
+  font-size:13px; cursor:pointer; border:1px solid transparent;
+}
+.day.done {background:var(--green);color:var(--greenText);font-weight:800}
+.day:disabled {opacity:.22;cursor:default}
+.day.today {border-color:var(--green)}
+.stats {display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.stat {background:var(--panel2);padding:14px;border-radius:13px}
+.stat strong {display:block;font-size:25px;margin-bottom:4px}
+.stat span {font-size:12px;color:var(--muted)}
+.progress {height:8px;background:var(--panel2);border-radius:20px;overflow:hidden;margin-top:10px}
+.progress div {height:100%;background:var(--green);border-radius:20px}
+.actions {display:flex;gap:8px;margin-top:14px}
+.actions button {flex:1}
+.tabs {
+  position:fixed;bottom:0;left:0;right:0;background:#1d2026;
+  border-top:1px solid var(--line);display:flex;justify-content:center;gap:55px;
+  padding:13px 10px calc(13px + env(safe-area-inset-bottom));
+}
+.tabs button {background:transparent;color:var(--muted)}
+.tabs button.active {color:var(--green)}
+.hidden {display:none!important}
+.modal {
+  position:fixed;inset:0;background:#0009;display:flex;align-items:center;
+  justify-content:center;padding:20px;z-index:5
+}
+.modal-box {background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:22px;width:100%;max-width:420px}
+.modal-actions {display:flex;gap:8px;margin-top:12px}
+.modal-actions button {flex:1}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">DAY<span>POINT</span></div>
+    <div class="small">Твій шлях. Твій прогрес.</div>
+  </header>
+
+  <section id="home">
+    <h1>Мої цілі</h1>
+    <p>Маленькі кроки щодня — великі зміни з часом.</p>
+    <div id="goals" class="goal-list"></div>
+    <button class="primary" style="width:100%;margin-top:13px" onclick="openModal()">＋ Додати ціль</button>
+
+    <div id="goalDetails" class="hidden">
+      <div class="panel">
+        <div class="month-head">
+          <button class="secondary" onclick="changeMonth(-1)">‹</button>
+          <h2 id="monthName"></h2>
+          <button class="secondary" onclick="changeMonth(1)">›</button>
+        </div>
+        <div class="week">
+          <div>ПН</div><div>ВТ</div><div>СР</div><div>ЧТ</div><div>ПТ</div><div>СБ</div><div>НД</div>
+        </div>
+        <div id="calendar" class="calendar"></div>
+        <div class="small" style="margin-top:13px">Натисни на день, щоб відмітити виконання.</div>
+      </div>
+
+      <div class="panel">
+        <h2>Статистика цілі</h2>
+        <div class="stats">
+          <div class="stat"><strong id="completed">0</strong><span>Виконано днів</span></div>
+          <div class="stat"><strong id="streak">0</strong><span>Поточна серія 🔥</span></div>
+          <div class="stat"><strong id="best">0</strong><span>Найкраща серія</span></div>
+          <div class="stat"><strong id="progressText">0%</strong><span>Прогрес цього місяця</span></div>
+        </div>
+        <div class="progress"><div id="progressBar" style="width:0%"></div></div>
+      </div>
+      <div class="actions">
+        <button class="secondary" onclick="editGoal()">Редагувати</button>
+        <button class="danger" onclick="deleteGoal()">Видалити</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="statistics" class="hidden">
+    <h1>Загальна статистика</h1>
+    <p>Твій прогрес за всіма цілями.</p>
+    <div class="panel">
+      <div class="stats">
+        <div class="stat"><strong id="allMarks">0</strong><span>Усього виконань</span></div>
+        <div class="stat"><strong id="allGoals">0</strong><span>Активних цілей</span></div>
+        <div class="stat"><strong id="allBest">0</strong><span>Найкраща серія</span></div>
+        <div class="stat"><strong id="allPercent">0%</strong><span>Середній прогрес</span></div>
+      </div>
+    </div>
+    <div id="statsList" class="goal-list"></div>
+  </section>
+</div>
+
+<nav class="tabs">
+  <button id="homeTab" class="active" onclick="showTab('home')">⌂ Головна</button>
+  <button id="statsTab" onclick="showTab('statistics')">▥ Статистика</button>
+</nav>
+
+<div id="modal" class="modal hidden">
+  <div class="modal-box">
+    <h2 id="modalTitle">Нова ціль</h2>
+    <label>Назва цілі</label>
+    <input id="goalName" placeholder="Наприклад, бігати щодня">
+    <label>Емодзі</label>
+    <input id="goalEmoji" value="🎯" maxlength="4">
+    <label>Дата початку</label>
+    <input id="goalStart" type="date">
+    <div class="modal-actions">
+      <button class="secondary" onclick="closeModal()">Скасувати</button>
+      <button class="primary" onclick="saveGoal()">Зберегти</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const KEY = 'daypoint_pwa_goals';
+let goals = [];
+let selectedId = null;
+let shownMonth = new Date();
+let editingId = null;
+
+const today = () => {
+  const d = new Date();
+  return dateKey(d);
+};
+function dateKey(d) {
+  return d.getFullYear() + '-' +
+    String(d.getMonth()+1).padStart(2,'0') + '-' +
+    String(d.getDate()).padStart(2,'0');
+}
+function load() {
+  try { goals = JSON.parse(localStorage.getItem(KEY) || '[]'); }
+  catch { goals = []; }
+  renderGoals();
+}
+function persist() {
+  localStorage.setItem(KEY, JSON.stringify(goals));
+}
+function selected() { return goals.find(g => g.id === selectedId); }
+
+function renderGoals() {
+  const box = document.getElementById('goals');
+  box.innerHTML = '';
+  goals.forEach(g => {
+    const el = document.createElement('div');
+    el.className = 'goal' + (g.id === selectedId ? ' active' : '');
+    el.innerHTML = `<div class="emoji">${escapeHtml(g.emoji)}</div>
+      <div style="flex:1"><div class="goal-name">${escapeHtml(g.name)}</div>
+      <div class="goal-sub">${g.marks.length} виконаних днів</div></div>
+      <div>›</div>`;
+    el.onclick = () => { selectedId = g.id; shownMonth = new Date(); render(); };
+    box.appendChild(el);
+  });
+  document.getElementById('goalDetails').classList.toggle('hidden', !selected());
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+function renderCalendar() {
+  const g = selected();
+  if (!g) return;
+  const year = shownMonth.getFullYear(), month = shownMonth.getMonth();
+  document.getElementById('monthName').textContent =
+    shownMonth.toLocaleDateString('uk-UA',{month:'long',year:'numeric'});
+  const first = new Date(year,month,1);
+  const offset = (first.getDay()+6)%7;
+  const count = new Date(year,month+1,0).getDate();
+  const cal = document.getElementById('calendar');
+  cal.innerHTML = '';
+  for(let i=0;i<offset;i++) cal.appendChild(document.createElement('div'));
+  for(let day=1;day<=count;day++) {
+    const d = new Date(year,month,day), key = dateKey(d);
+    const btn = document.createElement('button');
+    btn.className = 'day';
+    btn.textContent = day;
+    if(g.marks.includes(key)) btn.classList.add('done');
+    if(key === today()) btn.classList.add('today');
+    btn.disabled = key > today() || key < g.start;
+    btn.onclick = () => toggleMark(key);
+    cal.appendChild(btn);
+  }
+}
+function toggleMark(key) {
+  const g = selected();
+  if(!g) return;
+  g.marks = g.marks.includes(key) ? g.marks.filter(x=>x!==key) : [...g.marks,key];
+  g.marks.sort();
+  persist(); render();
+}
+function getStreak(marks) {
+  const set = new Set(marks);
+  let d = new Date();
+  if(!set.has(dateKey(d))) d.setDate(d.getDate()-1);
+  let n=0;
+  while(set.has(dateKey(d))) { n++; d.setDate(d.getDate()-1); }
+  return n;
+}
+function getBest(marks) {
+  const set = new Set(marks);
+  let best=0, run=0, prev=null;
+  [...set].sort().forEach(k => {
+    const d = new Date(k+'T12:00:00');
+    if(prev) {
+      const diff = (d-prev)/86400000;
+      run = diff===1 ? run+1 : 1;
+    } else run=1;
+    best=Math.max(best,run); prev=d;
+  });
+  return best;
+}
+function renderStats() {
+  const g=selected();
+  if(!g) return;
+  const year=shownMonth.getFullYear(), month=shownMonth.getMonth();
+  const days=new Date(year,month+1,0).getDate();
+  const monthMarks=g.marks.filter(k=>k.startsWith(year+'-'+String(month+1).padStart(2,'0'))).length;
+  const pct=Math.round(monthMarks/days*100);
+  document.getElementById('completed').textContent=g.marks.length;
+  document.getElementById('streak').textContent=getStreak(g.marks);
+  document.getElementById('best').textContent=getBest(g.marks);
+  document.getElementById('progressText').textContent=pct+'%';
+  document.getElementById('progressBar').style.width=pct+'%';
+}
+function renderOverall() {
+  const total=goals.reduce((s,g)=>s+g.marks.length,0);
+  document.getElementById('allMarks').textContent=total;
+  document.getElementById('allGoals').textContent=goals.length;
+  document.getElementById('allBest').textContent=Math.max(0,...goals.map(g=>getBest(g.marks)));
+  const percentages=goals.map(g=>{
+    const start=new Date(g.start+'T12:00:00');
+    const elapsed=Math.max(1,Math.floor((new Date()-start)/86400000)+1);
+    return Math.min(100,Math.round(g.marks.length/elapsed*100));
+  });
+  document.getElementById('allPercent').textContent=
+    (percentages.length ? Math.round(percentages.reduce((a,b)=>a+b,0)/percentages.length) : 0)+'%';
+  const list=document.getElementById('statsList');
+  list.innerHTML='';
+  goals.forEach(g=>{
+    const el=document.createElement('div');
+    el.className='goal';
+    el.innerHTML=`<div class="emoji">${escapeHtml(g.emoji)}</div>
+      <div style="flex:1"><div class="goal-name">${escapeHtml(g.name)}</div>
+      <div class="goal-sub">${g.marks.length} днів · серія ${getStreak(g.marks)}</div></div>`;
+    list.appendChild(el);
+  });
+}
+function render() {
+  renderGoals();
+  if(selected()) { renderCalendar(); renderStats(); }
+  renderOverall();
+}
+function changeMonth(n) {
+  shownMonth=new Date(shownMonth.getFullYear(),shownMonth.getMonth()+n,1);
+  render();
+}
+function openModal(id=null) {
+  editingId=id;
+  const g=id ? goals.find(x=>x.id===id) : null;
+  document.getElementById('modalTitle').textContent=g?'Редагувати ціль':'Нова ціль';
+  document.getElementById('goalName').value=g?.name||'';
+  document.getElementById('goalEmoji').value=g?.emoji||'🎯';
+  document.getElementById('goalStart').value=g?.start||today();
+  document.getElementById('modal').classList.remove('hidden');
+}
+function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+function saveGoal() {
+  const name=document.getElementById('goalName').value.trim();
+  const emoji=document.getElementById('goalEmoji').value.trim()||'🎯';
+  const start=document.getElementById('goalStart').value||today();
+  if(!name) { alert('Введи назву цілі'); return; }
+  if(start>today()) { alert('Дата початку не може бути в майбутньому'); return; }
+  if(editingId) {
+    const g=goals.find(x=>x.id===editingId);
+    g.name=name; g.emoji=emoji; g.start=start;
+    g.marks=g.marks.filter(k=>k>=start);
+  } else {
+    const g={id:Date.now().toString(),name,emoji,start,marks:[]};
+    goals.push(g); selectedId=g.id;
+  }
+  persist(); closeModal(); render();
+}
+function editGoal() { if(selected()) openModal(selectedId); }
+function deleteGoal() {
+  const g=selected();
+  if(!g || !confirm('Видалити ціль «'+g.name+'» і всі її відмітки?')) return;
+  goals=goals.filter(x=>x.id!==selectedId);
+  selectedId=goals[0]?.id||null;
+  persist(); render();
+}
+function showTab(tab) {
+  document.getElementById('home').classList.toggle('hidden',tab!=='home');
+  document.getElementById('statistics').classList.toggle('hidden',tab!=='statistics');
+  document.getElementById('homeTab').classList.toggle('active',tab==='home');
+  document.getElementById('statsTab').classList.toggle('active',tab==='statistics');
+  renderOverall();
+}
+load();
+</script>
+</body>
+</html>
